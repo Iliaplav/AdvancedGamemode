@@ -47,11 +47,14 @@ Admin see if users use this commands
 Big update of structure of plugin
 Added logs of gamemode change
 
+1.6
+Added new permission system
+Now you can use commands (/creative, /survival ...) if are OP or have VIP
 
 */
 
 class Advanced_Gamemode implements Plugin{
-   private $api;
+   private $api, $logs, $path, $vip;
 
    public function __construct(ServerAPI $api, $server = false){
      $this->api = $api;
@@ -61,41 +64,59 @@ class Advanced_Gamemode implements Plugin{
      $this->api->console->register("creative","turn on creative", array($this, "command"));
 	 $this->api->console->register("survival","turn on survival", array($this, "command"));
 	 $this->api->console->register("adventure","turn on adventure", array($this, "command"));
+	 $this->api->console->register("vip","Give to user permision vip", array($this, "commandVip"));
 	 $this->api->console->register("view","turn on view", array($this, "command"));
-	 $this->logs = new Config($this->api->plugin->configPath($this)."logs.yml", CONFIG_YAML, array("Logs of plugin AdvancedGamemode by Ilia_plav"));
+	 $this->api->ban->cmdWhitelist("creative");
+	 $this->api->ban->cmdWhitelist("survival");
+	 $this->api->ban->cmdWhitelist("adventure");
+	 $this->api->ban->cmdWhitelist("view");
+	 $this->path = $this->api->plugin->createConfig($this, array());
+	 $this->vip = $this->api->plugin->readYAML($this->path ."config.yml");
+	 $this->logs = new Config($this->api->plugin->configPath($this)."logs.yml", CONFIG_YAML, array("Logs of plugin Advanced Gamemode by Ilia_plav"));
    }
-
+   
+   public function commandVip($cmd, $args, $issuer){
+   $user = $args[0];
+   $username = $issuer->username;
+   array_push($this->vip, $user);
+   $this->api->plugin->writeYAML($this->path."vip.yml", $this->vip);
+   $this->api->chat->sendTo(false, "[Advanced Gamemode] Player $user is now vip", $username);
+   }
+   
    public function command($cmd, $args, $issuer){
-   if($issuer === 'console'){
+   if ($issuer === 'console'){
        $output .= "Run this command in game";
        return $output;
       }
 	  $username = $issuer->username;
-	switch($cmd){
-     case "survival":	
+	  if ($this->api->ban->isOP($username) or in_array($username, $this->vip)){
+	 switch($cmd){
+     case "survival":	 
 	 $this->api->console->run("gamemode 0 $username");
 	 console(FORMAT_GREEN."[Advanced Gamemode] $username change his gamemode to survival mode");
-	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."warps.yml", "$username changed his gamemode to survival");
+	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."logs.yml", "$username changed his gamemode to survival");
 	 break;
 	 case "creative":
 	 $this->api->console->run("gamemode 1 $username");
 	 console(FORMAT_GREEN."[Advanced Gamemode] $username change his gamemode to creative mode");
-	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."warps.yml", "$username changed his gamemode to creative");
+	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."logs.yml", "$username changed his gamemode to creative");
 	 break;
 	 case "adventure":
 	 $this->api->console->run("gamemode 3 $username");
 	 console(FORMAT_GREEN."[Advanced Gamemode] $username change his gamemode to adventure mode");
-	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."warps.yml", "$username changed his gamemode to adventure");
+	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."logs.yml", "$username changed his gamemode to adventure");
 	 break;
 	 case "view":
 	 $this->api->console->run("gamemode 4 $username");
 	 console(FORMAT_GREEN."[Advanced Gamemode] $username change his gamemode to view mode");
-	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."warps.yml", "$username changed his gamemode to view");
+	 $this->api->plugin->writeYAML($this->api->plugin->configPath($this)."logs.yml", "$username changed his gamemode to view");
 	 break;
-	            } 
+	            }				
+		}else{		
+		$this->api->chat->sendTo(false, "[Advanced Gamemode] You are not vip player", $username);
+		}
    }
       
-   public function __destruct(){
-   }
+   public function __destruct(){}
 }
 ?>
